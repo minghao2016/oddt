@@ -171,24 +171,21 @@ def test_dicts():
     mols = list(oddt.toolkit.readfile('sdf', os.path.join(test_data_dir, 'data/dude/xiap/actives_docked.sdf')))
     list(map(lambda x: x.addh(only_polar=True), mols))
 
-    skip_cols = ['coords', 'neighbors', 'radius', 'charge', 'resid',
+    skip_cols = ['radius', 'charge', 'resid',
                  # following fields need to be standarized
                  'atomtype',
                  'hybridization',
-                 'isacceptor',
-                 'isdonor',
-                 'isminus',
-                 'isplus',
                  'isaromatic'
                  ]
-    common_cols = [name for name in mols[0].atom_dict.dtype.names
-                   if name not in skip_cols]
+    all_cols = [name for name in mols[0].atom_dict.dtype.names
+                if name not in ['coords', 'neighbors']]
+    common_cols = [name for name in all_cols if name not in skip_cols]
 
     # Small molecules
     all_dicts = np.hstack([mol.atom_dict for mol in mols])
     all_dicts = all_dicts[all_dicts['atomicnum'] != 1]
 
-    data = pd.DataFrame({name: all_dicts[name] for name in common_cols})
+    data = pd.DataFrame({name: all_dicts[name] for name in all_cols})
     data['mol_idx'] = [i
                        for i, mol in enumerate(mols)
                        for atom in mol
@@ -223,9 +220,20 @@ def test_dicts():
     rec.protein = True
     rec.addh(only_polar=True)
 
+    skip_cols = ['radius', 'charge', 'resid',
+                 # following fields need to be standarized
+                 'atomtype',
+                 'hybridization',
+                 'isacceptor',
+                 'isdonor',
+                 'isplus',
+                 'isaromatic'
+                 ]
+    common_cols = [name for name in all_cols if name not in skip_cols]
+
     all_dicts = rec.atom_dict[rec.atom_dict['atomicnum'] != 1]
 
-    data = pd.DataFrame({name: all_dicts[name] for name in common_cols})
+    data = pd.DataFrame({name: all_dicts[name] for name in all_cols})
 
     # Save correct results
     # data.to_csv(os.path.join(test_data_dir, 'data/results/xiap/prot_atom_dict.csv'),

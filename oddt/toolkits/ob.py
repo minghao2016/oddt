@@ -120,7 +120,9 @@ class Molecule(pybel.Molecule):
     @property
     def OBMol(self):
         if not self._OBMol and self._source:
-            self._OBMol = readstring(self._source['fmt'], self._source['string'], opt=self._source['opt'] if 'opt' in self._source else {}).OBMol
+            self._OBMol = readstring(self._source['fmt'],
+                                     self._source['string'],
+                                     opt=self._source['opt'] if 'opt' in self._source else {}).OBMol
             self._source = None
         return self._OBMol
 
@@ -356,18 +358,60 @@ class Molecule(pybel.Molecule):
                             residue.name if residue else '',
                             residue.OBResidue.GetAtomProperty(atom.OBAtom, 2) if residue else False,  # is backbone
                             # atom properties
-                            atom.OBAtom.IsHbondAcceptor(),
-                            atom.OBAtom.IsHbondDonor(),
-                            atom.OBAtom.IsHbondDonorH(),
+                            False,  # atom.OBAtom.IsHbondAcceptor(),
+                            False,  # atom.OBAtom.IsHbondDonor(),
+                            False,  # atom.OBAtom.IsHbondDonorH(),
                             atomicnum in metals,
                             atomicnum == 6 and np.in1d(neighbors['atomicnum'], [6, 1, 0]).all(),  # hydrophobe
                             atom.OBAtom.IsAromatic(),
-                            atomtype in ['O3-', '02-' 'O-'] or atom.formalcharge < 0,  # is charged (minus)
-                            atomtype in ['N3+', 'N2+', 'Ng+'] or atom.formalcharge > 0,  # is charged (plus)
+                            False,  # atomtype in ['O3-', '02-' 'O-'] or atom.formalcharge < 0,  # is charged (minus)
+                            False,  # atomtype in ['N3+', 'N2+', 'Ng+'] or atom.formalcharge > 0,  # is charged (plus)
                             atomicnum in [9, 17, 35, 53],  # is halogen?
                             False,  # alpha
                             False  # beta
                             )
+
+        not_carbon = np.argwhere(atom_dict['atomicnum'] != 6).flatten()
+        # Acceptors
+        patt = Smarts('[$([O;H1;v2]),'
+                      '$([O;H0;v2;!$(O=N-*),'
+                      '$([O;-;!$(*-N=O)]),'
+                      '$([o;+0])]),'
+                      '$([n;+0;!X3;!$([n;H1](cc)cc),'
+                      '$([$([N;H0]#[C&v4])]),'
+                      '$([N&v3;H0;$(Nc)])]),'
+                      '$([F;$(F-[#6]);!$(FC[F,Cl,Br,I])])]')
+        matches = np.array(patt.findall(self)).flatten()
+        if len(matches) > 0:
+            atom_dict['isacceptor'][np.intersect1d(matches - 1, not_carbon)] = True
+
+        # Donors
+        patt = Smarts('[$([N&!H0&v3,N&!H0&+1&v4,n&H1&+0,$([$([Nv3](-C)(-C)-C)]),'
+                      '$([$(n[n;H1]),'
+                      '$(nc[n;H1])])]),'
+                      '$([O,S;H1;+0])]')
+        matches = np.array(patt.findall(self)).flatten()
+        if len(matches) > 0:
+            atom_dict['isdonor'][np.intersect1d(matches - 1, not_carbon)] = True
+            atom_dict['isdonorh'][[n.idx - 1
+                                   for idx in np.argwhere(atom_dict['isdonorh']).flatten()
+                                   for n in self.atoms[int(idx-1)].neighbors
+                                   if n.atomicnum == 1]] = True
+
+        # Basic group
+        patt = Smarts('[$([N;H2&+0][$([C,a]);!$([C,a](=O))]),'
+                      '$([N;H1&+0]([$([C,a]);!$([C,a](=O))])[$([C,a]);!$([C,a](=O))]),'
+                      '$([N;H0&+0]([C;!$(C(=O))])([C;!$(C(=O))])[C;!$(C(=O))]),'
+                      '$([N,n;X2;+0])]')
+        matches = np.array(patt.findall(self)).flatten()
+        if len(matches) > 0:
+            atom_dict['isplus'][np.intersect1d(matches - 1, not_carbon)] = True
+
+        # Acidic group
+        patt = Smarts('[$([C,S](=[O,S,P])-[O;H1])]')
+        matches = np.array(patt.findall(self)).flatten()
+        if len(matches) > 0:
+            atom_dict['isminus'][np.intersect1d(matches - 1, not_carbon)] = True
 
         if self.protein:
             # Protein Residues (alpha helix and beta sheet)

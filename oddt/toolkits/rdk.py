@@ -23,7 +23,7 @@ import os
 from copy import copy
 import gzip
 from base64 import b64encode
-from itertools import combinations
+from itertools import combinations, chain
 from collections import OrderedDict
 
 from six import next, BytesIO, PY3
@@ -635,11 +635,54 @@ class Molecule(object):
                             False  # beta
                             )
 
+        not_carbon = np.argwhere(atom_dict['atomicnum'] != 6).flatten()
+        # Acceptors
+        patt = Chem.MolFromSmarts('[$([O;H1;v2]),'
+                                  '$([O;H0;v2;!$(O=N-*),'
+                                  '$([O;-;!$(*-N=O)]),'
+                                  '$([o;+0])]),'
+                                  '$([n;+0;!X3;!$([n;H1](cc)cc),'
+                                  '$([$([N;H0]#[C&v4])]),'
+                                  '$([N&v3;H0;$(Nc)])]),'
+                                  '$([F;$(F-[#6]);!$(FC[F,Cl,Br,I])])]')
+        matches = np.array(self.Mol.GetSubstructMatches(patt)).flatten()
+        if len(matches) > 0:
+            atom_dict['isacceptor'][np.intersect1d(matches, not_carbon)] = True
+
+        # Donors
+        patt = Chem.MolFromSmarts('[$([N&!H0&v3,N&!H0&+1&v4,n&H1&+0,$([$([Nv3](-C)(-C)-C)]),'
+                                  '$([$(n[n;H1]),'
+                                  '$(nc[n;H1])])]),'
+                                  '$([O,S;H1;+0])]')
+        matches = np.array(self.Mol.GetSubstructMatches(patt)).flatten()
+        if len(matches) > 0:
+            atom_dict['isdonor'][np.intersect1d(matches, not_carbon)] = True
+            atom_dict['isdonorh'][[n.GetIdx()
+                                   for idx in np.argwhere(atom_dict['isdonor']).flatten()
+                                   for n in self.Mol.GetAtomWithIdx(int(idx)).GetNeighbors()
+                                   if n.GetAtomicNum() == 1]] = True
+
+        # Basic group
+        patt = Chem.MolFromSmarts('[$([N;H2&+0][$([C,a]);!$([C,a](=O))]),'
+                                  '$([N;H1&+0]([$([C,a]);!$([C,a](=O))])[$([C,a]);!$([C,a](=O))]),'
+                                  '$([N;H0&+0]([C;!$(C(=O))])([C;!$(C(=O))])[C;!$(C(=O))]),'
+                                  '$([N,n;X2;+0])]')
+        matches = np.array(self.Mol.GetSubstructMatches(patt)).flatten()
+        if len(matches) > 0:
+            atom_dict['isplus'][np.intersect1d(matches, not_carbon)] = True
+
+        # Acidic group
+        patt = Smarts('[$([C,S](=[O,S,P])-[O;H1])]')
+        matches = np.array(patt.findall(self)).flatten()
+        if len(matches) > 0:
+            atom_dict['isminus'][np.intersect1d(matches, not_carbon)] = True
+
         # Match features and mark them in atom_dict
-        translate_feats = {'Donor': 'isdonor',
-                           'Acceptor': 'isacceptor',
-                           'NegIonizable': 'isminus',
-                           'PosIonizable': 'isplus',
+        translate_feats = {
+                        #    'Donor': 'isdonor',
+                        #    'Acceptor': 'isacceptor',
+                        #    'NegIonizable': 'isminus',
+                        #    'PosIonizable': 'isplus',
                            }
 
         # build residue dictionary
