@@ -612,7 +612,7 @@ class Molecule(object):
             atom_dict[i] = (atom.idx,
                             coords,
                             elementtable.GetRvdw(atomicnum),
-                            partialcharge,
+                            partialcharge if atomicnum > 1 else 0,
                             atomicnum,
                             atomtype,
                             np.clip(atom.Atom.GetHybridization() - 1, 0, 3),

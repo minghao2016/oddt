@@ -394,8 +394,8 @@ class Molecule(pybel.Molecule):
         if len(matches) > 0:
             atom_dict['isdonor'][np.intersect1d(matches - 1, not_carbon)] = True
             atom_dict['isdonorh'][[n.idx - 1
-                                   for idx in np.argwhere(atom_dict['isdonorh']).flatten()
-                                   for n in self.atoms[int(idx-1)].neighbors
+                                   for idx in np.argwhere(atom_dict['isdonor']).flatten()
+                                   for n in self.atoms[int(idx)].neighbors
                                    if n.atomicnum == 1]] = True
 
         # Basic group
