@@ -221,12 +221,10 @@ def test_dicts():
 
     skip_cols = ['radius', 'charge', 'resid',
                  # following fields need to be standarized
-                 'atomtype',
                  'hybridization',
                  'isacceptor',
                  'isdonor',
                  'isplus',
-                 'isaromatic'
                  ]
     common_cols = [name for name in all_cols if name not in skip_cols]
 
@@ -244,14 +242,22 @@ def test_dicts():
         if issubclass(np.dtype(data[name].dtype).type, np.number):
             mask = data[name] - corr_data[name] > 1e-6
             for i in np.argwhere(mask):
-                print(i, data['resname'][i].values, data[name][i].values)
+                print(i,
+                      data['atomtype'][i].values,
+                      data['resname'][i].values,
+                      data[name][i].values,
+                      corr_data[name][i].values)
             assert_array_almost_equal(data[name],
                                       corr_data[name],
                                       err_msg='Protein atom_dict\'s collumn: "%s" is not equal' % name)
         else:
             mask = data[name] != corr_data[name]
             for i in np.argwhere(mask):
-                print(i, data['resname'][i].values, data[name][i].values)
+                print(i,
+                      data['atomtype'][i].values,
+                      data['resname'][i].values,
+                      data[name][i].values,
+                      corr_data[name][i].values)
             assert_array_equal(data[name],
                                corr_data[name],
                                err_msg='Protein atom_dict\'s collumn: "%s" is not equal' % name)

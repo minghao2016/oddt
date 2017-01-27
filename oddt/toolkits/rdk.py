@@ -47,7 +47,7 @@ from rdkit.Chem.Pharm2D import Gobbi_Pharm2D, Generate
 
 import oddt
 from oddt.toolkits.common import detect_secondary_structure
-from oddt.toolkits.extras.rdkit import _sybyl_atom_type
+from oddt.toolkits.extras.rdkit import _sybyl_atom_type, MolFromPDBBlock
 
 _descDict = dict(Descriptors.descList)
 
@@ -216,7 +216,8 @@ def readfile(format, filename, lazy=False, opt=None, *args, **kwargs):
             return (Molecule(Mol) for Mol in Chem.ForwardSDMolSupplier(filename_handle, **kwargs))
     elif format == "pdb":
         def mol_reader():
-            yield Molecule(Chem.MolFromPDBFile(filename, *args, **kwargs))
+            with open(filename) as f:
+                yield Molecule(MolFromPDBBlock(f.read(), *args, **kwargs))
         return mol_reader()
     elif format == "mol2":
         return _filereader_mol2(filename)
@@ -262,7 +263,7 @@ def readstring(format, string, **kwargs):
     elif format == "mol2":
         mol = Chem.MolFromMol2Block(string, **kwargs)
     elif format == "pdb":
-        mol = Chem.MolFromPDBBlock(string, **kwargs)
+        mol = MolFromPDBBlock(string, **kwargs)
     elif format == "smi":
         s = string.strip().split('\n')[0].strip().split()
         mol = Chem.MolFromSmiles(s[0], **kwargs)
@@ -560,7 +561,7 @@ class Molecule(object):
                       ('radius', np.float32),
                       ('charge', np.float32),
                       ('atomicnum', np.int8),
-                      ('atomtype', 'U4' if PY3 else 'a4'),
+                      ('atomtype', 'U5' if PY3 else 'a5'),
                       ('hybridization', np.int8),
                       ('neighbors', np.float32, (4, 3)),  # non-H neighbors coordinates for angles (max of 6 neighbors should be enough)
                       # residue info

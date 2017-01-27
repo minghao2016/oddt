@@ -291,7 +291,7 @@ class Molecule(pybel.Molecule):
                       ('radius', np.float32),
                       ('charge', np.float32),
                       ('atomicnum', np.int8),
-                      ('atomtype', 'U4' if six.PY3 else 'a4'),
+                      ('atomtype', 'U5' if six.PY3 else 'a5'),
                       ('hybridization', np.int8),
                       ('neighbors', np.float32, (4, 3)),  # max of 4 neighbors should be enough
                       # residue info

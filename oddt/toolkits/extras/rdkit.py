@@ -1,6 +1,99 @@
 from __future__ import absolute_import
 from rdkit import Chem
 
+_metals = (3, 4, 11, 12, 13, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29,
+           30, 31, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49,
+           50, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68,
+           69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83,
+           87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101,
+           102, 103)
+
+
+def MolFromPDBBlock(molBlock,
+                    sanitize=True,
+                    removeHs=True,
+                    flavor=0):
+    mol = Chem.MolFromPDBBlock(molBlock,
+                               sanitize=sanitize,
+                               removeHs=removeHs,
+                               flavor=flavor)
+    # Disconnect metals
+    mol = Chem.EditableMol(mol)
+    for atom in mol.GetMol().GetAtoms():
+        if atom.GetAtomicNum() in _metals:
+            for n in atom.GetNeighbors():
+                mol.RemoveBond(atom.GetIdx(), n.GetIdx())
+    mol = mol.GetMol()
+
+    # Adjust connectivity
+    for atom in mol.GetAtoms():
+        res = atom.GetPDBResidueInfo()
+        if res is None:
+            continue
+        res_name = res.GetResidueName()
+        atom_name = res.GetName().strip()
+
+        # Fix missing double bonds in RDKit - double bonds
+        if atom_name == 'O' and not res.GetIsHeteroAtom() and atom.GetDegree() == 1:
+            atom.SetNoImplicit(True)
+            atom.GetBonds()[0].SetBondType(Chem.BondType.DOUBLE)
+
+        # Double bonds in sidechains
+        if res_name in ['HID', 'HIE', 'HIP']:
+            if atom_name == 'CD2':
+                for bond in atom.GetBonds():
+                    if bond.GetBeginAtom().GetPDBResidueInfo().GetName().strip() == 'CG':
+                        bond.SetBondType(Chem.BondType.DOUBLE)
+                        break
+                    elif bond.GetEndAtom().GetPDBResidueInfo().GetName().strip() == 'CG':
+                        bond.SetBondType(Chem.BondType.DOUBLE)
+                        break
+            if res_name in ['HIE', 'HIP']:
+                if atom_name == 'CE1':
+                    for bond in atom.GetBonds():
+                        if bond.GetBeginAtom().GetPDBResidueInfo().GetName().strip() == 'ND1':
+                            bond.SetBondType(Chem.BondType.DOUBLE)
+                            break
+                        elif bond.GetEndAtom().GetPDBResidueInfo().GetName() == 'ND1':
+                            bond.SetBondType(Chem.BondType.DOUBLE)
+                            break
+            else:
+                if atom_name == 'CE1':
+                    for bond in atom.GetBonds():
+                        if bond.GetBeginAtom().GetPDBResidueInfo().GetName().strip() == 'NE2':
+                            bond.SetBondType(Chem.BondType.DOUBLE)
+                            break
+                        elif bond.GetEndAtom().GetPDBResidueInfo().GetName().strip() == 'NE2':
+                            bond.SetBondType(Chem.BondType.DOUBLE)
+                            break
+
+        # Adjust Hs
+        # if atom.GetAtomicNum() == 7 and res_name in ['HID', 'HIE']:
+        #     if atom_name == 'ND1':
+        #         if res_name == 'HID':
+        #             atom.SetNoImplicit(True)
+        #             # atom.SetNumExplicitHs(0)
+        #         else:
+        #             atom.SetNoImplicit(False)
+        #     elif atom_name == 'NE2':
+        #         if res_name == 'HIE':
+        #             atom.SetNoImplicit(True)
+        #             # atom.SetNumExplicitHs(0)
+        #         else:
+        #             atom.SetNoImplicit(False)
+
+
+            # print(res_name,
+            #       atom_name,
+            #       atom.GetDegree(),
+            #       atom.GetTotalValence(),
+            #       atom.GetNumImplicitHs(),
+            #       sum(n.GetAtomicNum() == 1 for n in atom.GetNeighbors()),
+            #       sep='\t')
+    if sanitize:
+        Chem.SanitizeMol(mol)
+    return mol
+
 
 # Mol2 Atom typing
 def _sybyl_atom_type(atom):
@@ -37,7 +130,7 @@ def _sybyl_atom_type(atom):
             sybyl = 'N.am'
         elif degree == 3 and _atom_matches_smarts(atom, '[$(N!-*),$([NX3H1]-*!-*)]'):
             sybyl = 'N.pl3'
-        elif degree == 3 and _atom_matches_smarts(atom, guanidine):  # guanidine has N.pl3
+        elif _atom_matches_smarts(atom, guanidine):  # guanidine has N.pl3
             sybyl = 'N.pl3'
         elif degree == 4 or hyb == 3 and atom.GetFormalCharge():
             sybyl = 'N.4'
