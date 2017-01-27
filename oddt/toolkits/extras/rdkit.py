@@ -1,4 +1,4 @@
-from __future__ import absolute_import
+from __future__ import absolute_import, print_function
 from rdkit import Chem
 
 _metals = (3, 4, 11, 12, 13, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29,
@@ -22,7 +22,8 @@ def MolFromPDBBlock(molBlock,
     for atom in mol.GetMol().GetAtoms():
         if atom.GetAtomicNum() in _metals:
             for n in atom.GetNeighbors():
-                mol.RemoveBond(atom.GetIdx(), n.GetIdx())
+                if n.GetPDBResidueInfo().GetResidueName().strip() != 'CYM':
+                    mol.RemoveBond(atom.GetIdx(), n.GetIdx())
     mol = mol.GetMol()
 
     # Adjust connectivity
@@ -42,46 +43,46 @@ def MolFromPDBBlock(molBlock,
         if res_name in ['HID', 'HIE', 'HIP']:
             if atom_name == 'CD2':
                 for bond in atom.GetBonds():
-                    if bond.GetBeginAtom().GetPDBResidueInfo().GetName().strip() == 'CG':
-                        bond.SetBondType(Chem.BondType.DOUBLE)
-                        break
-                    elif bond.GetEndAtom().GetPDBResidueInfo().GetName().strip() == 'CG':
+                    if bond.GetOtherAtom(atom).GetPDBResidueInfo().GetName().strip() == 'CG':
                         bond.SetBondType(Chem.BondType.DOUBLE)
                         break
             if res_name in ['HIE', 'HIP']:
                 if atom_name == 'CE1':
                     for bond in atom.GetBonds():
-                        if bond.GetBeginAtom().GetPDBResidueInfo().GetName().strip() == 'ND1':
+                        if bond.GetOtherAtom(atom).GetPDBResidueInfo().GetName().strip() == 'ND1':
                             bond.SetBondType(Chem.BondType.DOUBLE)
                             break
-                        elif bond.GetEndAtom().GetPDBResidueInfo().GetName() == 'ND1':
-                            bond.SetBondType(Chem.BondType.DOUBLE)
-                            break
-            else:
+            elif res_name == 'HID':
                 if atom_name == 'CE1':
                     for bond in atom.GetBonds():
-                        if bond.GetBeginAtom().GetPDBResidueInfo().GetName().strip() == 'NE2':
-                            bond.SetBondType(Chem.BondType.DOUBLE)
-                            break
-                        elif bond.GetEndAtom().GetPDBResidueInfo().GetName().strip() == 'NE2':
+                        if bond.GetOtherAtom(atom).GetPDBResidueInfo().GetName().strip() == 'NE2':
                             bond.SetBondType(Chem.BondType.DOUBLE)
                             break
 
         # Adjust Hs
-        # if atom.GetAtomicNum() == 7 and res_name in ['HID', 'HIE']:
-        #     if atom_name == 'ND1':
-        #         if res_name == 'HID':
-        #             atom.SetNoImplicit(True)
-        #             # atom.SetNumExplicitHs(0)
-        #         else:
-        #             atom.SetNoImplicit(False)
-        #     elif atom_name == 'NE2':
-        #         if res_name == 'HIE':
-        #             atom.SetNoImplicit(True)
-        #             # atom.SetNumExplicitHs(0)
-        #         else:
-        #             atom.SetNoImplicit(False)
-
+        # if atom.GetAtomicNum() == 7 and res_name in ['HID', 'HIE', 'HIS']:
+            # if atom_name == 'ND1':
+            #     if res_name == 'HID':
+            #         # atom.SetNoImplicit(False)
+            #         # atom.SetNumExplicitHs(1)
+            #         # atom.SetNumRadicalElectrons(0)
+            #         pass
+            #     elif res_name == 'HIE':
+            #         atom.SetNumRadicalElectrons(1)
+            #         atom.SetNoImplicit(True)
+            #         # atom.SetNumExplicitHs(0)
+            # elif atom_name == 'NE2':
+            #     if res_name == 'HIE':
+            #         # atom.SetNoImplicit(False)
+            #         # atom.SetNumExplicitHs(1)
+            #         # atom.SetNumRadicalElectrons(0)
+            #         pass
+            #     elif res_name == 'HID':
+            #         atom.SetNumRadicalElectrons(1)
+            #         atom.SetNoImplicit(True)
+            #         # atom.SetNumExplicitHs(0)
+            # # print(atom.GetNumRadicalElectrons())
+            # atom.UpdatePropertyCache()
 
             # print(res_name,
             #       atom_name,
@@ -90,8 +91,29 @@ def MolFromPDBBlock(molBlock,
             #       atom.GetNumImplicitHs(),
             #       sum(n.GetAtomicNum() == 1 for n in atom.GetNeighbors()),
             #       sep='\t')
+
     if sanitize:
-        Chem.SanitizeMol(mol)
+        result = Chem.SanitizeMol(mol)
+        if result != 0:
+            return None
+
+    # Debug
+    # for atom in mol.GetAtoms():
+    #     res = atom.GetPDBResidueInfo()
+    #     if res is None:
+    #         continue
+    #     res_name = res.GetResidueName()
+    #     atom_name = res.GetName().strip()
+    #     if atom_name in ['NE2', 'ND1'] and res_name in ['HID', 'HIE', 'HIS']:
+    #         print(res_name,
+    #               atom_name,
+    #               atom.GetDegree(),
+    #               atom.GetTotalValence(),
+    #               atom.GetNumExplicitHs(),
+    #               atom.GetNumImplicitHs(),
+    #               sum(n.GetAtomicNum() == 1 for n in atom.GetNeighbors()),
+    #               sep='\t')
+
     return mol
 
 
