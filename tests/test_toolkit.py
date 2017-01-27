@@ -171,11 +171,10 @@ def test_dicts():
     mols = list(oddt.toolkit.readfile('sdf', os.path.join(test_data_dir, 'data/dude/xiap/actives_docked.sdf')))
     list(map(lambda x: x.addh(only_polar=True), mols))
 
-    skip_cols = ['radius', 'charge', 'resid',
+    skip_cols = ['radius', 'charge',
                  # following fields need to be standarized
                  'atomtype',
                  'hybridization',
-                 'isaromatic'
                  ]
     all_cols = [name for name in mols[0].atom_dict.dtype.names
                 if name not in ['coords', 'neighbors']]
@@ -245,14 +244,14 @@ def test_dicts():
         if issubclass(np.dtype(data[name].dtype).type, np.number):
             mask = data[name] - corr_data[name] > 1e-6
             for i in np.argwhere(mask):
-                print(i, data[name][i].values)
+                print(i, data['resname'][i].values, data[name][i].values)
             assert_array_almost_equal(data[name],
                                       corr_data[name],
                                       err_msg='Protein atom_dict\'s collumn: "%s" is not equal' % name)
         else:
             mask = data[name] != corr_data[name]
             for i in np.argwhere(mask):
-                print(i, data[name][i].values)
+                print(i, data['resname'][i].values, data[name][i].values)
             assert_array_equal(data[name],
                                corr_data[name],
                                err_msg='Protein atom_dict\'s collumn: "%s" is not equal' % name)

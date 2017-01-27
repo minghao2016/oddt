@@ -364,8 +364,8 @@ class Molecule(pybel.Molecule):
                             atomicnum in metals,
                             atomicnum == 6 and np.in1d(neighbors['atomicnum'], [6, 1, 0]).all(),  # hydrophobe
                             atom.OBAtom.IsAromatic(),
-                            False,  # atomtype in ['O3-', '02-' 'O-'] or atom.formalcharge < 0,  # is charged (minus)
-                            False,  # atomtype in ['N3+', 'N2+', 'Ng+'] or atom.formalcharge > 0,  # is charged (plus)
+                            atom.formalcharge < 0,  # is charged (minus)
+                            atom.formalcharge > 0,  # is charged (plus)
                             atomicnum in [9, 17, 35, 53],  # is halogen?
                             False,  # alpha
                             False  # beta

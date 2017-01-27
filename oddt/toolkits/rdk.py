@@ -628,8 +628,8 @@ class Molecule(object):
                             atomicnum in metals,
                             atomicnum == 6 and np.in1d(neighbors['atomicnum'], [6, 1, 0]).all(),  # hydrophobe
                             atom.Atom.GetIsAromatic(),
-                            atomtype in ['O3-', '02-' 'O-'] or atom.formalcharge < 0,  # is charged (minus)
-                            atomtype in ['N3+', 'N2+', 'Ng+'] or atom.formalcharge > 0,  # is charged (plus)
+                            atom.formalcharge < 0,  # is charged (minus)
+                            atom.formalcharge > 0,  # is charged (plus)
                             atomicnum in [9, 17, 35, 53],  # is halogen?
                             False,  # alpha
                             False  # beta
@@ -645,7 +645,7 @@ class Molecule(object):
                                   '$([$([N;H0]#[C&v4])]),'
                                   '$([N&v3;H0;$(Nc)])]),'
                                   '$([F;$(F-[#6]);!$(FC[F,Cl,Br,I])])]')
-        matches = np.array(self.Mol.GetSubstructMatches(patt)).flatten()
+        matches = np.array(self.Mol.GetSubstructMatches(patt, maxMatches=5000)).flatten()
         if len(matches) > 0:
             atom_dict['isacceptor'][np.intersect1d(matches, not_carbon)] = True
 
@@ -654,7 +654,7 @@ class Molecule(object):
                                   '$([$(n[n;H1]),'
                                   '$(nc[n;H1])])]),'
                                   '$([O,S;H1;+0])]')
-        matches = np.array(self.Mol.GetSubstructMatches(patt)).flatten()
+        matches = np.array(self.Mol.GetSubstructMatches(patt, maxMatches=5000)).flatten()
         if len(matches) > 0:
             atom_dict['isdonor'][np.intersect1d(matches, not_carbon)] = True
             atom_dict['isdonorh'][[n.GetIdx()
@@ -667,13 +667,13 @@ class Molecule(object):
                                   '$([N;H1&+0]([$([C,a]);!$([C,a](=O))])[$([C,a]);!$([C,a](=O))]),'
                                   '$([N;H0&+0]([C;!$(C(=O))])([C;!$(C(=O))])[C;!$(C(=O))]),'
                                   '$([N,n;X2;+0])]')
-        matches = np.array(self.Mol.GetSubstructMatches(patt)).flatten()
+        matches = np.array(self.Mol.GetSubstructMatches(patt, maxMatches=5000)).flatten()
         if len(matches) > 0:
             atom_dict['isplus'][np.intersect1d(matches, not_carbon)] = True
 
         # Acidic group
-        patt = Smarts('[$([C,S](=[O,S,P])-[O;H1])]')
-        matches = np.array(patt.findall(self)).flatten()
+        patt = Chem.MolFromSmarts('[$([C,S](=[O,S,P])-[O;H1])]')
+        matches = np.array(self.Mol.GetSubstructMatches(patt, maxMatches=5000)).flatten()
         if len(matches) > 0:
             atom_dict['isminus'][np.intersect1d(matches, not_carbon)] = True
 
