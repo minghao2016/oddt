@@ -92,7 +92,7 @@ def test_mol():
     if oddt.toolkit.backend == 'ob':
         assert_equal(len(protein.atoms), 2170)
     elif oddt.toolkit.backend == 'rdk':
-        assert_equal(len(protein.atoms), 2222)
+        assert_equal(len(protein.atoms), 2177)
     else:
         raise Exception('There is no supported toolkit')
     assert_equal(len(protein.residues), 138)
