@@ -222,9 +222,7 @@ def test_dicts():
     skip_cols = ['radius', 'charge', 'resid',
                  # following fields need to be standarized
                  'hybridization',
-                 'isacceptor',
-                 'isdonor',
-                 'isplus',
+                #  'isdonor',
                  ]
     common_cols = [name for name in all_cols if name not in skip_cols]
 
