@@ -45,7 +45,7 @@ from rdkit.Chem.Lipinski import NumRotatableBonds
 from rdkit.Chem.AllChem import ComputeGasteigerCharges
 from rdkit.Chem.Pharm2D import Gobbi_Pharm2D, Generate
 
-import oddt
+import oddt.pandas
 from oddt.toolkits.common import detect_secondary_structure
 from oddt.toolkits.extras.rdkit import _sybyl_atom_type, MolFromPDBBlock
 
@@ -467,6 +467,15 @@ class Molecule(object):
         return Chem.MolToSmiles(self.Mol, isomericSmiles=True)
 
     # Custom ODDT properties #
+    def _clear_cache(self):
+        """Clear all ODDT caches and dicts"""
+        self._atom_dict = None
+        self._res_dict = None
+        self._ring_dict = None
+        self._coords = None
+        self._charges = None
+        self._residues = None
+
     @property
     def residues(self):
         if self._residues is None:
@@ -539,11 +548,11 @@ class Molecule(object):
         return self.__repr__()
 
     def __repr__(self):
-        if oddt.ipython_notebook:
+        if oddt.pandas.ipython_notebook:
             if oddt.pandas.image_backend == 'png':
-                return self._repr_png_()
+                return self._repr_png_(size=oddt.pandas.image_size)
             else:
-                return self._repr_svg_()
+                return self._repr_svg_(size=oddt.pandas.image_size)
         else:
             return super(Molecule, self).__repr__()
 
@@ -654,6 +663,8 @@ class Molecule(object):
         patt = Chem.MolFromSmarts('[$([N&!H0&v3,N&!H0&+1&v4,n&H1&+0,$([$([Nv3](-C)(-C)-C)]),'
                                   '$([$(n[n;H1]),'
                                   '$(nc[n;H1])])]),'
+                                  # Guanidine can be tautormeic - e.g. Arginine
+                                  '$([NX3,NX2]([!O,!S])!@C(!@[NX3,NX2]([!O,!S]))!@[NX3,NX2]([!O,!S])),'
                                   '$([O,S;H1;+0])]')
         matches = np.array(self.Mol.GetSubstructMatches(patt, maxMatches=5000)).flatten()
         if len(matches) > 0:
@@ -787,13 +798,7 @@ class Molecule(object):
             polar_atoms = None
 
         self.Mol = Chem.AddHs(self.Mol, addCoords=True, onlyOnAtoms=polar_atoms, **kwargs)
-        # clear caches
-        self._atom_dict = None
-        self._res_dict = None
-        self._ring_dict = None
-        self._coords = None
-        self._charges = None
-        self._residues = None
+        self._clear_cache()
         # merge Hs to residues
         if self.protein:
             for atom in self.Mol.GetAtoms():
@@ -817,13 +822,7 @@ class Molecule(object):
     def removeh(self, **kwargs):
         """Remove hydrogens."""
         self.Mol = Chem.RemoveHs(self.Mol, **kwargs)
-        # clear caches
-        self._atom_dict = None
-        self._res_dict = None
-        self._ring_dict = None
-        self._coords = None
-        self._charges = None
-        self._residues = None
+        self._clear_cache()
 
     def write(self, format="smi", filename=None, overwrite=False, size=None, **kwargs):
         """Write the molecule to a file or return a string.
@@ -1006,10 +1005,12 @@ class Molecule(object):
             raise Exception("Embedding failed!")
 
         self.localopt(forcefield, steps)
+        self._clear_cache()
 
     def make2D(self):
         """Generate 2D coordinates for molecule"""
         AllChem.Compute2DCoords(self.Mol)
+        self._clear_cache()
 
     def __getstate__(self):
         if self._source is None:
@@ -1083,7 +1084,7 @@ class Atom(object):
     def coords(self):
         owningmol = self.Atom.GetOwningMol()
         if owningmol.GetNumConformers() == 0:
-            raise AttributeError("Atom has no coordinates (0D structure)")
+            return (0, 0, 0)
         idx = self.Atom.GetIdx()
         atomcoords = owningmol.GetConformer().GetAtomPosition(idx)
         return (atomcoords[0], atomcoords[1], atomcoords[2])

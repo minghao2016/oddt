@@ -15,7 +15,7 @@ import numpy as np
 import openbabel as ob
 from openbabel import OBAtomAtomIter, OBTypeTable
 
-import oddt
+import oddt.pandas
 from oddt.toolkits.common import detect_secondary_structure
 
 backend = 'ob'
@@ -187,11 +187,11 @@ class Molecule(pybel.Molecule):
         return self.__repr__()
 
     def __repr__(self):
-        if oddt.ipython_notebook:
+        if oddt.pandas.ipython_notebook:
             if oddt.pandas.image_backend == 'png':
-                return self._repr_png_()
+                return self._repr_png_(size=oddt.pandas.image_size)
             else:
-                return self._repr_svg_()
+                return self._repr_svg_(size=oddt.pandas.image_size)
         else:
             return super(Molecule, self).__repr__()
 
@@ -201,10 +201,22 @@ class Molecule(pybel.Molecule):
             self.OBMol.AddPolarHydrogens()
         else:
             self.OBMol.AddHydrogens()
+        self._clear_cache()
+
+    def removeh(self):
+        """Remove hydrogens"""
+        super(Molecule, self).removeh()
+        self._clear_cache()
+
+    def make3D(self, forcefield="mmff94", steps=50):
+        """Generate 3D coordinates"""
+        super(Molecule, self).make3D(forcefield=forcefield, steps=steps)
+        self._clear_cache()
 
     def make2D(self):
         """Generate 2D coordinates for molecule"""
         pybel._operations['gen2D'].Do(self.OBMol)
+        self._clear_cache()
 
     # Custom ODDT properties #
     def __getattr__(self, attr):
@@ -212,6 +224,15 @@ class Molecule(pybel.Molecule):
             if attr.lower() == desc.lower():
                 return self.calcdesc([desc])[desc]
         raise AttributeError('Molecule has no such property: %s' % attr)
+
+    def _clear_cache(self):
+        """Clear all ODDT caches and dicts"""
+        self._atom_dict = None
+        self._res_dict = None
+        self._ring_dict = None
+        self._coords = None
+        self._charges = None
+        self._residues = None
 
     @property
     def num_rotors(self):
@@ -230,16 +251,16 @@ class Molecule(pybel.Molecule):
                           '!$(C([CH3])([CH3])[CH3])]')
         return len(rot_bond.findall(self))
 
-    def _repr_svg_(self):
+    def _repr_svg_(self, size=(200, 200)):
         return self.clone.write('svg',
                                 opt={'d': None},
-                                size=oddt.pandas.image_size).replace('\n', '')
+                                size=size).replace('\n', '')
 
-    def _repr_png_(self):
+    def _repr_png_(self, size=(200, 200)):
         string = self.clone.write('png',
                                   opt={'d': None,
                                        't': None},
-                                  size=oddt.pandas.image_size)
+                                  size=size)
         if six.PY3:  # bug in SWIG decoding
             string = string.encode('utf-8', errors='surrogateescape')
         return '<img src="data:image/png;base64,%s" alt="%s">' % (
@@ -389,6 +410,8 @@ class Molecule(pybel.Molecule):
         patt = Smarts('[$([N&!H0&v3,N&!H0&+1&v4,n&H1&+0,$([$([Nv3](-C)(-C)-C)]),'
                       '$([$(n[n;H1]),'
                       '$(nc[n;H1])])]),'
+                      # Guanidine can be tautormeic - e.g. Arginine
+                      '$([NX3,NX2]([!O,!S])!@C(!@[NX3,NX2]([!O,!S]))!@[NX3,NX2]([!O,!S])),'
                       '$([O,S;H1;+0])]')
         matches = np.array(patt.findall(self)).flatten()
         if len(matches) > 0:
