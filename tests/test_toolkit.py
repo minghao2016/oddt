@@ -140,7 +140,6 @@ def test_dicts():
 
     skip_cols = ['radius', 'charge',
                  # following fields need to be standarized
-                 'atomtype',
                  'hybridization',
                  ]
     all_cols = [name for name in mols[0].atom_dict.dtype.names
@@ -167,7 +166,7 @@ def test_dicts():
         if issubclass(np.dtype(data[name].dtype).type, np.number):
             mask = data[name] - corr_data[name] > 1e-6
             for i in np.argwhere(mask):
-                print(i, data[name][i].values,
+                print(i, data[name][i].values, corr_data[name][i].values,
                       mols[data['mol_idx'][int(i)]].write('smi'))
             assert_array_almost_equal(data[name],
                                       corr_data[name],
@@ -175,7 +174,7 @@ def test_dicts():
         else:
             mask = data[name] != corr_data[name]
             for i in np.argwhere(mask):
-                print(i, data[name][i].values,
+                print(i, data[name][i].values, corr_data[name][i].values,
                       mols[data['mol_idx'][int(i)]].write('smi'))
             assert_array_equal(data[name],
                                corr_data[name],
@@ -189,7 +188,7 @@ def test_dicts():
     skip_cols = ['radius', 'charge', 'resid',
                  # following fields need to be standarized
                  'hybridization',
-                #  'isdonor',
+                 'isdonor',
                  ]
     common_cols = [name for name in all_cols if name not in skip_cols]
 

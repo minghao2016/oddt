@@ -88,6 +88,7 @@ def _sybyl_atom_type(atom):
     hyb = atom.GetHybridization()-1  # -1 since 1 = sp, 2 = sp1 etc
     hyb = min(hyb, 3)
     degree = atom.GetDegree()
+    aromtic = atom.GetIsAromatic()
 
     # define groups for atom types
     guanidine = '[NX3,NX2]([!O,!S])!@C(!@[NX3,NX2]([!O,!S]))!@[NX3,NX2]([!O,!S])'  # strict
@@ -98,14 +99,14 @@ def _sybyl_atom_type(atom):
     #
 
     if atomic_num == 6:
-        if atom.GetIsAromatic():
+        if aromtic:
             sybyl = 'C.ar'
         elif degree == 3 and _atom_matches_smarts(atom, guanidine):
             sybyl = 'C.cat'
         else:
             sybyl = '%s.%i' % (atom_symbol, hyb)
     elif atomic_num == 7:
-        if atom.GetIsAromatic():
+        if aromtic:
             sybyl = 'N.ar'
         elif _atom_matches_smarts(atom, 'C(=[O,S])-N'):
             sybyl = 'N.am'
@@ -121,7 +122,7 @@ def _sybyl_atom_type(atom):
         # http://www.daylight.com/dayhtml_tutorials/languages/smarts/smarts_examples.html
         if degree == 1 and _atom_matches_smarts(atom, '[CX3](=O)[OX1H0-]'):
             sybyl = 'O.co2'
-        elif degree == 2:
+        elif degree == 2 and not aromtic:  # Aromatic Os are sp2
             sybyl = 'O.3'
         else:
             sybyl = 'O.2'
