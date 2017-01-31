@@ -1113,7 +1113,7 @@ class Atom(object):
         if self.Atom.HasProp('_TriposPartialCharge'):
             return float(self.Atom.GetProp('_TriposPartialCharge'))
         if not self.Atom.HasProp('_GasteigerCharge'):
-            ComputeGasteigerCharges(self.Atom.GetOwningMol())
+            ComputeGasteigerCharges(self.Atom.GetOwningMol(), nIter=50)
         return float(self.Atom.GetProp('_GasteigerCharge').replace(',', '.'))
 
     def __str__(self):
