@@ -392,7 +392,7 @@ class Molecule(pybel.Molecule):
                             False  # beta
                             )
 
-        not_carbon = np.argwhere(atom_dict['atomicnum'] != 6).flatten()
+        not_carbon = np.argwhere(~np.in1d(atom_dict['atomicnum'], [1, 6])).flatten()
         # Acceptors
         patt = Smarts('[$([O;H1;v2]),'
                       '$([O;H0;v2;!$(O=N-*),'
